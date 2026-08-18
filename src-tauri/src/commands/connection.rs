@@ -1542,6 +1542,10 @@ async fn test_connection_with_info_inner(
                         "Connection successful (Agent identity unavailable; Agent writes disabled)".to_string()
                     }))
             }
+            DatabaseType::S3 => {
+                dbx_core::s3::connect_s3_client(&config, &host, port).await?;
+                Ok("Connection successful".to_string())
+            }
             #[cfg(feature = "mq-admin")]
             DatabaseType::MessageQueue => {
                 // Probe with a transient adapter so Test Connection never retains/replaces
@@ -1957,6 +1961,10 @@ pub async fn connect_db(
             let client = dbx_core::consul::ConsulClient::new(consul_config).await?;
             client.probe().await?;
             PoolKind::Consul(client)
+        }
+        DatabaseType::S3 => {
+            let client = dbx_core::s3::connect_s3_client(&db_config, &host, port).await?;
+            PoolKind::S3(client)
         }
         #[cfg(feature = "mq-admin")]
         DatabaseType::MessageQueue => {
