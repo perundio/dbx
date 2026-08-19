@@ -1629,8 +1629,14 @@ async fn test_connection_with_info_inner(
 /// 连接成功且 `save_password=false` 时，把本次输入的密码记入内存会话凭据仓库，
 /// 供本次运行内 AI / 元数据 / 池重建复用（进程退出即丢，绝不落盘）。
 fn record_session_credential(state: &AppState, config: &ConnectionConfig, connection_id: &str) {
-    if !config.save_password && !config.password.is_empty() {
-        let _ = state.session_credentials.set("", connection_id, &config.password);
+    if !config.save_password {
+        let token = config
+            .external_config
+            .as_ref()
+            .and_then(|value| value.get("sessionToken").or_else(|| value.get("session_token")))
+            .and_then(|value| value.as_str())
+            .unwrap_or_default();
+        let _ = state.session_credentials.set_with_s3_session_token("", connection_id, &config.password, token);
     }
 }
 
@@ -2033,6 +2039,10 @@ pub async fn connect_db(
     let mut stored = connected_config;
     if !stored.save_password {
         stored.password.clear();
+        if let Some(object) = stored.external_config.as_mut().and_then(|value| value.as_object_mut()) {
+            object.remove("sessionToken");
+            object.remove("session_token");
+        }
     }
     state.configs.write().await.insert(id.clone(), stored);
 
@@ -2070,6 +2080,15 @@ pub async fn connection_final_proxy_port(
 
     let (_, port) = state.connection_host_port(&connection_id, &db_config).await?;
     record_session_credential(state.inner(), &runtime_config, &connection_id);
+    if !runtime_config.save_password {
+        let mut stored = runtime_config;
+        stored.password.clear();
+        if let Some(object) = stored.external_config.as_mut().and_then(|value| value.as_object_mut()) {
+            object.remove("sessionToken");
+            object.remove("session_token");
+        }
+        state.configs.write().await.insert(connection_id.clone(), stored);
+    }
     Ok(port)
 }
 

@@ -1228,7 +1228,11 @@ async fn install_agent_driver_with_batch_unlocked(
                         if let Some(local_native) = find_local_agent_native(db_type) {
                             install_local_native_agent(am, db_type, local_native, None)?;
                             am.stop_daemon_by_key(db_type).await;
-                            progress(AgentProgressEvent::step("done").with_batch(Some(db_type), current, total_drivers));
+                            progress(AgentProgressEvent::step("done").with_batch(
+                                Some(db_type),
+                                current,
+                                total_drivers,
+                            ));
                             return Ok(());
                         }
                         if let Some(local_jar) = find_local_agent_jar(db_type) {

@@ -22,6 +22,16 @@ pub struct S3CreateBucketRequest {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct S3CopyObjectRequest {
+    pub connection_id: String,
+    pub source_bucket: String,
+    pub source_key: String,
+    pub destination_bucket: String,
+    pub destination_key: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct S3ListObjectsRequest {
     pub connection_id: String,
     pub bucket: String,
@@ -70,6 +80,14 @@ pub async fn create_bucket(
     Json(req): Json<S3CreateBucketRequest>,
 ) -> Result<Json<()>, AppError> {
     dbx_core::s3::s3_create_bucket_core(&state.app, &req.connection_id, &req.bucket).await.map_err(AppError::from)?;
+    Ok(Json(()))
+}
+
+pub async fn delete_bucket(
+    State(state): State<Arc<WebState>>,
+    Json(req): Json<S3CreateBucketRequest>,
+) -> Result<Json<()>, AppError> {
+    dbx_core::s3::s3_delete_bucket_core(&state.app, &req.connection_id, &req.bucket).await.map_err(AppError::from)?;
     Ok(Json(()))
 }
 
@@ -149,5 +167,39 @@ pub async fn delete_object(
     dbx_core::s3::s3_delete_object_core(&state.app, &req.connection_id, &req.bucket, &req.key)
         .await
         .map_err(AppError::from)?;
+    Ok(Json(()))
+}
+
+pub async fn copy_object(
+    State(state): State<Arc<WebState>>,
+    Json(req): Json<S3CopyObjectRequest>,
+) -> Result<Json<()>, AppError> {
+    dbx_core::s3::s3_copy_object_core(
+        &state.app,
+        &req.connection_id,
+        &req.source_bucket,
+        &req.source_key,
+        &req.destination_bucket,
+        &req.destination_key,
+    )
+    .await
+    .map_err(AppError::from)?;
+    Ok(Json(()))
+}
+
+pub async fn move_object(
+    State(state): State<Arc<WebState>>,
+    Json(req): Json<S3CopyObjectRequest>,
+) -> Result<Json<()>, AppError> {
+    dbx_core::s3::s3_move_object_core(
+        &state.app,
+        &req.connection_id,
+        &req.source_bucket,
+        &req.source_key,
+        &req.destination_bucket,
+        &req.destination_key,
+    )
+    .await
+    .map_err(AppError::from)?;
     Ok(Json(()))
 }

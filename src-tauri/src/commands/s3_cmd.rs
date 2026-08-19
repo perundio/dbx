@@ -22,6 +22,15 @@ pub async fn s3_create_bucket(
 }
 
 #[tauri::command]
+pub async fn s3_delete_bucket(
+    state: State<'_, Arc<AppState>>,
+    connection_id: String,
+    bucket: String,
+) -> Result<(), String> {
+    dbx_core::s3::s3_delete_bucket_core(&state, &connection_id, &bucket).await
+}
+
+#[tauri::command]
 pub async fn s3_list_objects(
     state: State<'_, Arc<AppState>>,
     connection_id: String,
@@ -95,4 +104,44 @@ pub async fn s3_delete_object(
     key: String,
 ) -> Result<(), String> {
     dbx_core::s3::s3_delete_object_core(&state, &connection_id, &bucket, &key).await
+}
+
+#[tauri::command]
+pub async fn s3_copy_object(
+    state: State<'_, Arc<AppState>>,
+    connection_id: String,
+    source_bucket: String,
+    source_key: String,
+    destination_bucket: String,
+    destination_key: String,
+) -> Result<(), String> {
+    dbx_core::s3::s3_copy_object_core(
+        &state,
+        &connection_id,
+        &source_bucket,
+        &source_key,
+        &destination_bucket,
+        &destination_key,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn s3_move_object(
+    state: State<'_, Arc<AppState>>,
+    connection_id: String,
+    source_bucket: String,
+    source_key: String,
+    destination_bucket: String,
+    destination_key: String,
+) -> Result<(), String> {
+    dbx_core::s3::s3_move_object_core(
+        &state,
+        &connection_id,
+        &source_bucket,
+        &source_key,
+        &destination_bucket,
+        &destination_key,
+    )
+    .await
 }

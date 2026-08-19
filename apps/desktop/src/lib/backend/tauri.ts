@@ -3371,6 +3371,10 @@ export async function s3CreateBucket(connectionId: string, bucket: string): Prom
   return invoke("s3_create_bucket", { connectionId, bucket });
 }
 
+export async function s3DeleteBucket(connectionId: string, bucket: string): Promise<void> {
+  return invoke("s3_delete_bucket", { connectionId, bucket });
+}
+
 export async function s3ListObjects(connectionId: string, bucket: string, prefix: string, delimiter: string | null, maxKeys: number, continuationToken: string | null): Promise<import("@/types/s3").S3ListObjectsResponse> {
   return invoke("s3_list_objects", { connectionId, bucket, prefix, delimiter, maxKeys, continuationToken });
 }
@@ -3393,6 +3397,14 @@ export async function s3UploadObject(connectionId: string, bucket: string, key: 
 
 export async function s3DeleteObject(connectionId: string, bucket: string, key: string): Promise<void> {
   return invoke("s3_delete_object", { connectionId, bucket, key });
+}
+
+export async function s3CopyObject(connectionId: string, sourceBucket: string, sourceKey: string, destinationBucket: string, destinationKey: string): Promise<void> {
+  return invoke("s3_copy_object", { connectionId, sourceBucket, sourceKey, destinationBucket, destinationKey });
+}
+
+export async function s3MoveObject(connectionId: string, sourceBucket: string, sourceKey: string, destinationBucket: string, destinationKey: string): Promise<void> {
+  return invoke("s3_move_object", { connectionId, sourceBucket, sourceKey, destinationBucket, destinationKey });
 }
 
 export async function consulPreparedQueryList(connectionId: string): Promise<import("@/types/consul").ConsulPreparedQuery[]> {

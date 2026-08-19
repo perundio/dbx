@@ -1280,6 +1280,15 @@ export const useConnectionStore = defineStore("connection", () => {
     };
   }
 
+  function stripNoSaveS3SessionToken(config: ConnectionConfig) {
+    if (config.save_password !== false || config.db_type !== "s3") return;
+    if (!config.external_config || typeof config.external_config !== "object" || Array.isArray(config.external_config)) return;
+    const next = { ...(config.external_config as Record<string, unknown>) };
+    delete next.sessionToken;
+    delete next.session_token;
+    config.external_config = Object.keys(next).length ? next : undefined;
+  }
+
   function loadPinnedTreeNodeOrderFromLocalStorage(): string[] {
     try {
       if (typeof localStorage === "undefined") return [];
@@ -3079,6 +3088,7 @@ export const useConnectionStore = defineStore("connection", () => {
   async function addConnection(config: ConnectionConfig, targetGroupId?: string | null) {
     const normalized = normalizeConnection(config);
     if (normalized.save_password === false) normalized.password = "";
+    stripNoSaveS3SessionToken(normalized);
     await persistTimeoutInheritance(normalized.id, normalized.connect_timeout_inherit === true, normalized.query_timeout_inherit === true);
     const existing = connections.value.findIndex((c) => c.id === normalized.id);
     const nextConnections = [...connections.value];
@@ -3263,6 +3273,7 @@ export const useConnectionStore = defineStore("connection", () => {
   async function updateConnection(config: ConnectionConfig) {
     config = normalizeConnection(config);
     if (config.save_password === false) config.password = "";
+    stripNoSaveS3SessionToken(config);
     const idx = connections.value.findIndex((c) => c.id === config.id);
     if (idx < 0) return;
     const runtimeConfigChanged = connectionConfigFingerprint(connections.value[idx]) !== connectionConfigFingerprint(config);

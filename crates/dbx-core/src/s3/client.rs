@@ -169,6 +169,18 @@ impl S3Client {
         }
         Ok(url)
     }
+
+    pub fn copy_source_header(&self, bucket: &str, key: &str) -> Result<String, String> {
+        let bucket = bucket.trim();
+        if bucket.is_empty() {
+            return Err("S3 source bucket name is required".to_string());
+        }
+        let key = normalize_key(key);
+        if key.is_empty() {
+            return Err("S3 source object key is required".to_string());
+        }
+        Ok(format!("/{bucket}/{}", encode_path_segments(&key)))
+    }
 }
 
 pub(crate) async fn ensure_writable_core(
@@ -187,7 +199,9 @@ fn normalize_key(key: &str) -> String {
 }
 
 const PATH_ENCODE_SET: &AsciiSet = &CONTROLS
+    .add(b' ')
     .add(b'/')
+    .add(b'%')
     .add(b'?')
     .add(b'#')
     .add(b'[')
@@ -218,4 +232,50 @@ fn encode_path_segments(key: &str) -> String {
         )
         .collect::<Vec<_>>()
         .join("/")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::s3::config::S3AddressingStyle;
+
+    fn test_client(addressing_style: S3AddressingStyle) -> S3Client {
+        S3Client {
+            config: S3Config {
+                endpoint: Url::parse("https://s3.us-east-1.amazonaws.com").unwrap(),
+                region: "us-east-1".to_string(),
+                access_key_id: "AKIAEXAMPLE".to_string(),
+                secret_access_key: "secret".to_string(),
+                session_token: String::new(),
+                addressing_style,
+                default_bucket: String::new(),
+                tls_skip_verify: false,
+                connect_timeout_secs: 10,
+                request_timeout_secs: 10,
+                connect_override: None,
+            },
+            http: reqwest::Client::new(),
+        }
+    }
+
+    #[test]
+    fn object_url_path_style_encodes_special_characters_once() {
+        let client = test_client(S3AddressingStyle::Path);
+        let url = client.object_url("demo-bucket", "folder/space 中%?.txt").unwrap();
+        assert_eq!(url.as_str(), "https://s3.us-east-1.amazonaws.com/demo-bucket/folder/space%20%E4%B8%AD%25%3F.txt");
+    }
+
+    #[test]
+    fn object_url_virtual_hosted_encodes_special_characters_once() {
+        let client = test_client(S3AddressingStyle::VirtualHosted);
+        let url = client.object_url("demo-bucket", "folder/space 中%?.txt").unwrap();
+        assert_eq!(url.as_str(), "https://demo-bucket.s3.us-east-1.amazonaws.com/folder/space%20%E4%B8%AD%25%3F.txt");
+    }
+
+    #[test]
+    fn copy_source_header_encodes_special_characters_once() {
+        let client = test_client(S3AddressingStyle::Path);
+        let header = client.copy_source_header("demo-bucket", "folder/space 中%?.txt").unwrap();
+        assert_eq!(header, "/demo-bucket/folder/space%20%E4%B8%AD%25%3F.txt");
+    }
 }

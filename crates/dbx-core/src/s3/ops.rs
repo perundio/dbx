@@ -72,6 +72,11 @@ pub async fn s3_create_bucket_core(state: &AppState, connection_id: &str, bucket
     s3_create_bucket_with_client(&connection_client(state, connection_id).await?, bucket).await
 }
 
+pub async fn s3_delete_bucket_core(state: &AppState, connection_id: &str, bucket: &str) -> Result<(), String> {
+    ensure_writable_core(state, connection_id, "delete bucket").await?;
+    s3_delete_bucket_with_client(&connection_client(state, connection_id).await?, bucket).await
+}
+
 pub async fn s3_list_objects_core(
     state: &AppState,
     connection_id: &str,
@@ -162,6 +167,39 @@ pub async fn s3_delete_object_core(
     s3_delete_object_with_client(&connection_client(state, connection_id).await?, bucket, key).await
 }
 
+pub async fn s3_copy_object_core(
+    state: &AppState,
+    connection_id: &str,
+    source_bucket: &str,
+    source_key: &str,
+    destination_bucket: &str,
+    destination_key: &str,
+) -> Result<(), String> {
+    ensure_writable_core(state, connection_id, "copy object").await?;
+    s3_copy_object_with_client(
+        &connection_client(state, connection_id).await?,
+        source_bucket,
+        source_key,
+        destination_bucket,
+        destination_key,
+    )
+    .await
+}
+
+pub async fn s3_move_object_core(
+    state: &AppState,
+    connection_id: &str,
+    source_bucket: &str,
+    source_key: &str,
+    destination_bucket: &str,
+    destination_key: &str,
+) -> Result<(), String> {
+    ensure_writable_core(state, connection_id, "move object").await?;
+    let client = connection_client(state, connection_id).await?;
+    s3_copy_object_with_client(&client, source_bucket, source_key, destination_bucket, destination_key).await?;
+    s3_delete_object_with_client(&client, source_bucket, source_key).await
+}
+
 async fn connection_client(state: &AppState, connection_id: &str) -> Result<S3Client, String> {
     state.get_or_create_pool(connection_id, None).await?;
     let connections = state.connections.read().await;
@@ -184,6 +222,15 @@ pub async fn s3_create_bucket_with_client(client: &S3Client, bucket: &str) -> Re
     }
     let (payload, content_type) = create_bucket_request_body(client.config());
     client.request(Method::PUT, client.bucket_url(bucket)?, None, Some(payload.as_slice()), content_type, &[]).await?;
+    Ok(())
+}
+
+pub async fn s3_delete_bucket_with_client(client: &S3Client, bucket: &str) -> Result<(), String> {
+    let bucket = bucket.trim();
+    if bucket.is_empty() {
+        return Err("S3 bucket name is required".to_string());
+    }
+    client.request(Method::DELETE, client.bucket_url(bucket)?, None, None, None, &[]).await?;
     Ok(())
 }
 
@@ -256,6 +303,20 @@ pub async fn s3_put_object_with_client(
 
 pub async fn s3_delete_object_with_client(client: &S3Client, bucket: &str, key: &str) -> Result<(), String> {
     client.request(Method::DELETE, client.object_url(bucket, key)?, None, None, None, &[]).await?;
+    Ok(())
+}
+
+pub async fn s3_copy_object_with_client(
+    client: &S3Client,
+    source_bucket: &str,
+    source_key: &str,
+    destination_bucket: &str,
+    destination_key: &str,
+) -> Result<(), String> {
+    let destination_url = client.object_url(destination_bucket, destination_key)?;
+    let copy_source = client.copy_source_header(source_bucket, source_key)?;
+    let signed_headers = [("x-amz-copy-source", copy_source.as_str())];
+    client.request(Method::PUT, destination_url, None, None, None, &signed_headers).await?;
     Ok(())
 }
 

@@ -94,7 +94,7 @@ fn canonical_uri(path: &str) -> String {
     if path.is_empty() {
         "/".to_string()
     } else {
-        percent_encode_path(path)
+        path.to_string()
     }
 }
 
@@ -120,13 +120,6 @@ fn percent_encode(value: &str) -> String {
         }
     }
     encoded
-}
-
-fn percent_encode_path(path: &str) -> String {
-    path.split('/')
-        .map(|segment| if segment.is_empty() { String::new() } else { percent_encode(segment) })
-        .collect::<Vec<_>>()
-        .join("/")
 }
 
 fn sha256_hex(payload: &[u8]) -> String {
@@ -198,5 +191,21 @@ mod tests {
             pairs.append_pair("max-keys", "200");
         }
         assert_eq!(canonical_query(&url), "delimiter=%2F&list-type=2&max-keys=200");
+    }
+
+    #[test]
+    fn canonical_uri_keeps_existing_percent_encoding_for_path_style_urls() {
+        let url =
+            reqwest::Url::parse("https://s3.us-east-1.amazonaws.com/demo-bucket/folder/space%20%E4%B8%AD%25%3F.txt")
+                .unwrap();
+        assert_eq!(canonical_uri(url.path()), "/demo-bucket/folder/space%20%E4%B8%AD%25%3F.txt");
+    }
+
+    #[test]
+    fn canonical_uri_keeps_existing_percent_encoding_for_virtual_hosted_urls() {
+        let url =
+            reqwest::Url::parse("https://demo-bucket.s3.us-east-1.amazonaws.com/folder/space%20%E4%B8%AD%25%3F.txt")
+                .unwrap();
+        assert_eq!(canonical_uri(url.path()), "/folder/space%20%E4%B8%AD%25%3F.txt");
     }
 }

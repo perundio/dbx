@@ -1148,10 +1148,20 @@ impl AppState {
         db_config: &mut ConnectionConfig,
         connection_id: &str,
     ) {
-        if !config.save_password && db_config.password.is_empty() {
+        if !config.save_password {
             let owner = crate::session_credentials::current_credential_owner().unwrap_or_default();
-            if let Some(session_password) = self.session_credentials.get(&owner, connection_id) {
-                db_config.password = session_password;
+            if db_config.password.is_empty() {
+                if let Some(session_password) = self.session_credentials.get(&owner, connection_id) {
+                    db_config.password = session_password;
+                }
+            }
+            if config.db_type == DatabaseType::S3 {
+                if let Some(token) = self.session_credentials.get_s3_session_token(&owner, connection_id) {
+                    let external = db_config.external_config.get_or_insert_with(|| serde_json::json!({}));
+                    if let Some(object) = external.as_object_mut() {
+                        object.insert("sessionToken".to_string(), serde_json::Value::String(token));
+                    }
+                }
             }
         }
     }
