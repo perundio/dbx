@@ -39,13 +39,10 @@ struct SessionCredentialWrites {
 
 fn take_s3_session_token(config: &mut ConnectionConfig) -> Option<String> {
     let object = config.external_config.as_mut()?.as_object_mut()?;
-    object
-        .remove("sessionToken")
-        .or_else(|| object.remove("session_token"))
-        .and_then(|value| match value {
-            serde_json::Value::String(token) if !token.is_empty() => Some(token),
-            _ => None,
-        })
+    object.remove("sessionToken").or_else(|| object.remove("session_token")).and_then(|value| match value {
+        serde_json::Value::String(token) if !token.is_empty() => Some(token),
+        _ => None,
+    })
 }
 
 fn prepare_runtime_config(mut config: ConnectionConfig) -> (ConnectionConfig, NoSaveRuntimeSecrets) {
@@ -56,22 +53,14 @@ fn prepare_runtime_config(mut config: ConnectionConfig) -> (ConnectionConfig, No
         let passwords = take_transient_passwords(&mut config);
         return (
             config,
-            NoSaveRuntimeSecrets {
-                primary: passwords.primary,
-                console: passwords.console,
-                s3_session_token: None,
-            },
+            NoSaveRuntimeSecrets { primary: passwords.primary, console: passwords.console, s3_session_token: None },
         );
     }
     let s3_session_token = take_s3_session_token(&mut config);
     let primary = std::mem::take(&mut config.password);
     (
         config,
-        NoSaveRuntimeSecrets {
-            primary: (!primary.is_empty()).then_some(primary),
-            console: None,
-            s3_session_token,
-        },
+        NoSaveRuntimeSecrets { primary: (!primary.is_empty()).then_some(primary), console: None, s3_session_token },
     )
 }
 

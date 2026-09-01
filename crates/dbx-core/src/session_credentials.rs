@@ -188,11 +188,7 @@ impl SessionCredentialStore {
         let generation = state.next_generation;
         state.purpose_credentials.insert(
             key.clone(),
-            SessionCredential {
-                password: password.to_string(),
-                s3_session_token: String::new(),
-                generation,
-            },
+            SessionCredential { password: password.to_string(), s3_session_token: String::new(), generation },
         );
         Some(PurposeSessionCredentialWriteToken { key, generation })
     }
